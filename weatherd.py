@@ -21,7 +21,7 @@ config = ConfigParser.ConfigParser()
 config.read('/etc/weather.ini')
 
 logger = logging.getLogger("weatherd")
-logging.basicConfig(filename = '/var/log/weatherd.log', level=logging.INFO)
+logging.basicConfig(filename = '/home/pi/weatherd.log', level=logging.INFO)
 
 
 #parser = argparse.ArgumentParser(description='Weatherunderground updater')
@@ -102,8 +102,8 @@ class WeatherD(Daemon.Daemon):
 		rain_hour = Decimal(0.0)
 		rain_day = Decimal(0.0)
 		weather = Sensor()
-		cur_hour = datetime.datetime.today().hour
-		cur_day = datetime.datetime.today().day
+		cur_hour = datetime.datetime.now().hour
+		cur_day = datetime.datetime.now().day
 		times = 0
 		cur_rain = Decimal(0.0)
 		at_startup=True
@@ -116,7 +116,7 @@ class WeatherD(Daemon.Daemon):
 				logger.debug("%s MsgId %s", msg['model'], msg['message_type'])
 				if msgType == 56:
 					got_msg38=True
-					weather.timestamp = msg['time']
+					weather.timestamp = str(datetime.datetime.strptime(msg['time'],"%Y-%m-%d %H:%M:%S") + datetime.timedelta(hours = 3) )
 					weather.wind_mph = float(msg['wind_avg_mi_h'])
 					weather.temp_f = float(msg['temperature_F'])
 					weather.rh_pct = float(msg['humidity'])
@@ -125,7 +125,7 @@ class WeatherD(Daemon.Daemon):
 				elif msgType == 49:
 				
 					got_msg31=True
-					weather.timestamp = msg['time']
+					weather.timestamp = str(datetime.datetime.strptime(msg['time'],"%Y-%m-%d %H:%M:%S") + datetime.timedelta(hours = 3) )
 					weather.wind_mph = float(msg['wind_avg_mi_h'])
 					weather.winddir_deg = float(msg['wind_dir_deg'])
 					if at_startup:
@@ -134,18 +134,18 @@ class WeatherD(Daemon.Daemon):
 					cur_rain = Decimal(msg['rain_in']) - rain_total #inches rain since last message
 						
 					#handle hourly rain
-					if (cur_hour != datetime.datetime.today().hour):
+					if (cur_hour != datetime.datetime.now().hour):
 						logger.info("%s Resetting hourly rain total, was %1.1f", weather.timestamp, rain_hour)
-						cur_hour = datetime.datetime.today().hour
+						cur_hour = datetime.datetime.now().hour
 						rain_hour = Decimal(0.0)
 			    
 					rain_hour += cur_rain
 					weather.rain_in = rain_hour
 				
 					#handle daily rain
-					if (cur_day != datetime.datetime.today().day):
+					if (cur_day != datetime.datetime.now().day):
 						logger.info("%s Resetting daily rain total, was %1.1f",  weather.timestamp, rain_day)
-						cur_day = datetime.datetime.today().day
+						cur_day = datetime.datetime.now().day
 						rain_day = Decimal(0.0)
 				
 					rain_day = rain_day + cur_rain
@@ -161,7 +161,7 @@ class WeatherD(Daemon.Daemon):
 						logger.info("%s Got total rain of %1.3f in", datetime.datetime.now(), rain_total)
 
 			if (got_msg38 and got_msg31):
-				logger.info("%s Wind %1.1f mph, dir %03.1f deg, %1.3f F, RH %1.1f%%, Rain (last) %1.2f in, (1hr) %1.2f in, (1day) %1.2f in", weather.timestamp, weather.wind_mph, weather.winddir_deg, weather.temp_f, weather.rh_pct, cur_rain, weather.rain_in, weather.rain_daily_in)
+				logger.info("%s WindGust %1.1f mph, dir %03.1f deg, %1.3f F, RH %1.1f%%, Rain (last) %1.2f in, (1hr) %1.2f in, (1day) %1.2f in", weather.timestamp, weather.wind_mph, weather.winddir_deg, weather.temp_f, weather.rh_pct, cur_rain, weather.rain_in, weather.rain_daily_in)
 				got_msg31=False
 				got_msg38=False
 				logger.debug("Updating weather")
@@ -186,3 +186,4 @@ if __name__ == "__main__":
         else:
                 print "usage: %s start|stop|restart" % sys.argv[0]
                 sys.exit(2)
+
